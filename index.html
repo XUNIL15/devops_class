@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — Hacker Terminal</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #00ff88;
+    --green-dim: #00cc6a;
+    --green-glow: rgba(0,255,136,0.15);
+    --red: #ff2d55;
+    --cyan: #00e5ff;
+    --yellow: #ffd60a;
+    --bg: #020d07;
+    --bg2: #040f09;
+    --card: rgba(0,255,136,0.04);
+    --border: rgba(0,255,136,0.15);
+    --text: #a8ffcc;
+    --text-dim: #3d7a55;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* Scanlines overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    background: rgba(2,13,7,0.95);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    z-index: 500;
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 1.3rem;
+    color: var(--green);
+    text-shadow: 0 0 20px var(--green), 0 0 40px rgba(0,255,136,0.4);
+    letter-spacing: 4px;
+  }
+
+  .logo span { color: var(--cyan); }
+
+  .topbar-center {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+  }
+
+  .nav-item {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 4px 0;
+    border-bottom: 1px solid transparent;
+  }
+
+  .nav-item:hover, .nav-item.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 2s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .clock {
+    font-size: 0.75rem;
+    color: var(--green-dim);
+    letter-spacing: 2px;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    padding-top: 72px;
+    padding: 72px 24px 24px;
+    display: grid;
+    grid-template-columns: 260px 1fr 280px;
+    grid-template-rows: auto auto;
+    gap: 16px;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .card:hover {
+    border-color: rgba(0,255,136,0.35);
+    box-shadow: 0 0 30px rgba(0,255,136,0.06), inset 0 0 30px rgba(0,255,136,0.02);
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    opacity: 0.5;
+  }
+
+  .card-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--green-dim);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '//';
+    color: var(--text-dim);
+  }
+
+  /* ── SIDEBAR LEFT ── */
+  .sidebar-left { grid-row: 1 / 3; }
+
+  .profile-section {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .avatar {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 2px solid var(--green);
+    box-shadow: 0 0 20px rgba(0,255,136,0.3);
+    margin: 0 auto 12px;
+    background: radial-gradient(circle at 35% 35%, #1a4a2e, #020d07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .avatar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(0,255,136,0.1), transparent);
+    animation: rotate 4s linear infinite;
+  }
+
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .username {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.85rem;
+    color: var(--green);
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+  }
+
+  .user-role {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  .level-bar {
+    margin-top: 12px;
+  }
+
+  .level-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+  }
+
+  .bar-bg {
+    height: 4px;
+    background: rgba(0,255,136,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green-dim), var(--green));
+    box-shadow: 0 0 8px var(--green);
+    border-radius: 2px;
+    transition: width 1.5s ease;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.72rem;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .menu-item:hover, .menu-item.active {
+    background: rgba(0,255,136,0.06);
+    color: var(--green);
+    padding-left: 18px;
+  }
+
+  .menu-item .icon { width: 16px; text-align: center; font-size: 0.8rem; }
+
+  .menu-badge {
+    margin-left: auto;
+    background: var(--red);
+    color: white;
+    font-size: 0.55rem;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-family: 'Orbitron', monospace;
+  }
+
+  /* ── CENTER TOP — TERMINAL ── */
+  .terminal-card {
+    grid-column: 2;
+    min-height: 320px;
+  }
+
+  .terminal-header {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #28ca41; }
+
+  .terminal-path {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    margin-left: 8px;
+    letter-spacing: 1px;
+  }
+
+  .terminal-body {
+    font-size: 0.72rem;
+    line-height: 1.9;
+    height: 240px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .t-line { display: flex; gap: 8px; }
+  .t-prompt { color: var(--green); flex-shrink: 0; }
+  .t-cmd { color: var(--text); }
+  .t-output { color: var(--text-dim); padding-left: 16px; }
+  .t-success { color: var(--green); padding-left: 16px; }
+  .t-warn { color: var(--yellow); padding-left: 16px; }
+  .t-error { color: var(--red); padding-left: 16px; }
+  .t-info { color: var(--cyan); padding-left: 16px; }
+
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 13px;
+    background: var(--green);
+    vertical-align: middle;
+    animation: cursor-blink 1s step-end infinite;
+  }
+
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  /* ── CENTER BOTTOM — STATS ── */
+  .stats-row {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+
+  .stat-card:hover {
+    border-color: rgba(0,255,136,0.4);
+    transform: translateY(-2px);
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card:nth-child(1)::after { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .stat-card:nth-child(2)::after { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .stat-card:nth-child(3)::after { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .stat-card:nth-child(4)::after { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: var(--green);
+    line-height: 1;
+    margin-bottom: 6px;
+    text-shadow: 0 0 20px currentColor;
+  }
+
+  .stat-card:nth-child(2) .stat-value { color: var(--cyan); }
+  .stat-card:nth-child(3) .stat-value { color: var(--yellow); }
+  .stat-card:nth-child(4) .stat-value { color: var(--red); }
+
+  .stat-label {
+    font-size: 0.58rem;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  /* ── SIDEBAR RIGHT ── */
+  .sidebar-right { grid-row: 1 / 3; }
+
+  .threat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(0,255,136,0.05);
+    font-size: 0.68rem;
+  }
+
+  .threat-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .threat-high { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .threat-med { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .threat-low { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  .threat-info { flex: 1; }
+  .threat-name { color: var(--text); margin-bottom: 2px; }
+  .threat-ip { color: var(--text-dim); font-size: 0.6rem; letter-spacing: 1px; }
+  .threat-time { color: var(--text-dim); font-size: 0.58rem; }
+
+  /* Network graph */
+  .network-graph {
+    position: relative;
+    height: 160px;
+    margin-top: 8px;
+  }
+
+  .network-graph canvas { width: 100% !important; }
+
+  /* Ping bars */
+  .ping-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 50px;
+    margin-top: 12px;
+  }
+
+  .ping-bar {
+    flex: 1;
+    background: rgba(0,255,136,0.15);
+    border-radius: 2px 2px 0 0;
+    transition: height 0.5s ease;
+    position: relative;
+  }
+
+  .ping-bar.active {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  /* ── GLITCH EFFECT ── */
+  @keyframes glitch {
+    0%, 90%, 100% { transform: none; clip-path: none; }
+    92% { transform: translate(-2px, 0); clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%); }
+    94% { transform: translate(2px, 0); clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%); }
+    96% { transform: none; clip-path: none; }
+  }
+
+  .logo:hover { animation: glitch 0.5s; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ── ALERT BANNER ── */
+  .alert-banner {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(255,45,85,0.1);
+    border: 1px solid var(--red);
+    border-radius: 4px;
+    padding: 12px 18px;
+    font-size: 0.68rem;
+    color: var(--red);
+    letter-spacing: 1px;
+    z-index: 600;
+    animation: slideIn 0.5s ease, pulse-border 2s infinite;
+    max-width: 280px;
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(100px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 10px rgba(255,45,85,0.2); }
+    50% { box-shadow: 0 0 20px rgba(255,45,85,0.5); }
+  }
+
+  .alert-title { font-family: 'Orbitron', monospace; font-size: 0.6rem; margin-bottom: 4px; letter-spacing: 2px; }
+
+  /* Hexagon decorations */
+  .hex-deco {
+    position: fixed;
+    opacity: 0.03;
+    font-size: 8rem;
+    color: var(--green);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hex-1 { top: 10%; right: 5%; }
+  .hex-2 { bottom: 15%; left: 3%; font-size: 5rem; opacity: 0.04; }
+
+  /* Loading bar top */
+  .loading-bar {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--green), var(--cyan));
+    box-shadow: 0 0 8px var(--green);
+    z-index: 600;
+    animation: loading 3s ease infinite;
+  }
+
+  @keyframes loading {
+    0% { width: 0%; opacity: 1; }
+    70% { width: 100%; opacity: 1; }
+    100% { width: 100%; opacity: 0; }
+  }
+
+  /* Map placeholder */
+  .map-area {
+    height: 120px;
+    background:
+      radial-gradient(circle at 30% 50%, rgba(0,255,136,0.08) 0%, transparent 50%),
+      radial-gradient(circle at 70% 30%, rgba(0,229,255,0.05) 0%, transparent 40%),
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: auto, auto, 20px 20px, 20px 20px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+
+  .map-ping {
+    position: absolute;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 12px var(--red);
+  }
+
+  .map-ping::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1px solid var(--red);
+    animation: ripple 2s infinite;
+    opacity: 0;
+  }
+
+  @keyframes ripple {
+    0% { transform: scale(0.5); opacity: 0.8; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+
+  .map-ping:nth-child(1) { top: 40%; left: 25%; }
+  .map-ping:nth-child(2) { top: 25%; left: 60%; background: var(--yellow); box-shadow: 0 0 12px var(--yellow); animation-delay: 0.5s; }
+  .map-ping:nth-child(3) { top: 60%; left: 75%; background: var(--green); box-shadow: 0 0 12px var(--green); animation-delay: 1s; }
+
+  .map-label {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 0.55rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="hex-deco hex-1">⬡</div>
+<div class="hex-deco hex-2">⬡</div>
+<div class="loading-bar"></div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">NEX<span>US</span></div>
+  <div class="topbar-center">
+    <div class="nav-item active">DASHBOARD</div>
+    <div class="nav-item">NETWORK</div>
+    <div class="nav-item">EXPLOITS</div>
+    <div class="nav-item">RECON</div>
+    <div class="nav-item">LOGS</div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot"></div>
+    <div class="clock" id="clock">00:00:00</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main">
+
+  <!-- SIDEBAR LEFT -->
+  <div class="card sidebar-left">
+    <div class="profile-section">
+      <div class="avatar">👤</div>
+      <div class="username">XUNIL_15</div>
+      <div class="user-role">// PENETRATION TESTER</div>
+      <div class="level-bar">
+        <div class="level-label"><span>LVL 7 — ELITE</span><span>82%</span></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:82%"></div></div>
+      </div>
+    </div>
+
+    <div class="card-title">Navigation</div>
+    <div class="menu-item active"><span class="icon">◈</span> Dashboard</div>
+    <div class="menu-item"><span class="icon">⬡</span> Network Map</div>
+    <div class="menu-item"><span class="icon">◉</span> Port Scanner <span class="menu-badge">3</span></div>
+    <div class="menu-item"><span class="icon">▣</span> Exploit DB</div>
+    <div class="menu-item"><span class="icon">◎</span> Payloads</div>
+    <div class="menu-item"><span class="icon">⊕</span> OSINT Tools</div>
+    <div class="menu-item"><span class="icon">◬</span> Anonymity <span class="menu-badge">!</span></div>
+    <div class="menu-item"><span class="icon">⊞</span> Reports</div>
+
+    <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <div class="card-title">System Status</div>
+      <div style="font-size: 0.65rem; line-height: 2.2; color: var(--text-dim);">
+        <div style="display:flex; justify-content:space-between;"><span>VPN</span><span style="color:var(--green)">ACTIVE ●</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>TOR</span><span style="color:var(--green)">CONNECTED ●</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>PROXY</span><span style="color:var(--yellow)">ROTATING ◎</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>FIREWALL</span><span style="color:var(--green)">ON ●</span></div>
+        <div style="display:flex; justify-content:space-between;"><span>IP LEAK</span><span style="color:var(--green)">NONE ●</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER TERMINAL -->
+  <div class="card terminal-card">
+    <div class="terminal-header">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <div class="terminal-path">root@nexus:~# /home/xunil/ops/recon</div>
+    </div>
+    <div class="terminal-body" id="terminal">
+      <div class="t-line"><span class="t-prompt">root@nexus:~$</span><span class="t-cmd"> nmap -sV -O 192.168.1.0/24</span></div>
+      <div class="t-info">Starting Nmap 7.94 ( https://nmap.org )</div>
+      <div class="t-output">Scanning 256 hosts [2 ports/host]</div>
+      <div class="t-success">Host: 192.168.1.1  STATUS: up  LATENCY: 0.42ms</div>
+      <div class="t-output">PORT    STATE  SERVICE   VERSION</div>
+      <div class="t-output">22/tcp  open   ssh       OpenSSH 8.9</div>
+      <div class="t-output">80/tcp  open   http      nginx 1.24.0</div>
+      <div class="t-output">443/tcp open   https     nginx 1.24.0</div>
+      <div class="t-warn">3306/tcp open  mysql     MySQL 8.0.32  [EXPOSED]</div>
+      <div class="t-line" style="margin-top:6px"><span class="t-prompt">root@nexus:~$</span><span class="t-cmd"> proxychains4 -q theHarvester -d target.com -b all</span></div>
+      <div class="t-info">|S-chain|-&lt;&gt;-127.0.0.1:9050-&lt;&gt;-OK</div>
+      <div class="t-success">[*] Emails found: 7</div>
+      <div class="t-output">admin@target.com</div>
+      <div class="t-output">dev@target.com</div>
+      <div class="t-success">[*] Hosts found: 12</div>
+      <div class="t-warn">[!] Potential subdomain takeover detected</div>
+      <div class="t-line" style="margin-top:6px"><span class="t-prompt">root@nexus:~$</span><span class="t-cmd"> </span><span class="cursor"></span></div>
+    </div>
+  </div>
+
+  <!-- CENTER STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="stat1">247</div>
+      <div class="stat-label">Hosts Scanned</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat2">14</div>
+      <div class="stat-label">Open Ports</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat3">3</div>
+      <div class="stat-label">Vulns Found</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat4">99%</div>
+      <div class="stat-label">Anonymity</div>
+    </div>
+  </div>
+
+  <!-- SIDEBAR RIGHT -->
+  <div class="card sidebar-right">
+    <div class="card-title">Threat Feed</div>
+
+    <div class="threat-item">
+      <div class="threat-dot threat-high"></div>
+      <div class="threat-info">
+        <div class="threat-name">SQL Injection Attempt</div>
+        <div class="threat-ip">185.220.101.47 — RU</div>
+      </div>
+      <div class="threat-time">2s ago</div>
+    </div>
+    <div class="threat-item">
+      <div class="threat-dot threat-high"></div>
+      <div class="threat-info">
+        <div class="threat-name">Brute Force SSH</div>
+        <div class="threat-ip">45.95.168.12 — CN</div>
+      </div>
+      <div class="threat-time">18s</div>
+    </div>
+    <div class="threat-item">
+      <div class="threat-dot threat-med"></div>
+      <div class="threat-info">
+        <div class="threat-name">Port Scan Detected</div>
+        <div class="threat-ip">91.108.4.177 — DE</div>
+      </div>
+      <div class="threat-time">1m</div>
+    </div>
+    <div class="threat-item">
+      <div class="threat-dot threat-med"></div>
+      <div class="threat-info">
+        <div class="threat-name">XSS Payload</div>
+        <div class="threat-ip">104.21.55.203 — US</div>
+      </div>
+      <div class="threat-time">3m</div>
+    </div>
+    <div class="threat-item">
+      <div class="threat-dot threat-low"></div>
+      <div class="threat-info">
+        <div class="threat-name">Suspicious DNS Query</div>
+        <div class="threat-ip">192.168.33.4 — LAN</div>
+      </div>
+      <div class="threat-time">7m</div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <div class="card-title">Network Traffic</div>
+      <div class="ping-bars" id="pingBars">
+        <!-- Generated by JS -->
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:0.55rem; color:var(--text-dim); margin-top:6px; letter-spacing:1px;">
+        <span>↑ 2.4 MB/s</span><span>↓ 8.1 MB/s</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <div class="card-title">Origin Map</div>
+      <div class="map-area">
+        <div class="map-ping"></div>
+        <div class="map-ping"></div>
+        <div class="map-ping"></div>
+        <div class="map-label">LIVE THREATS</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <div class="card-title">Quick Tools</div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px;">
+        <div style="padding:8px; border:1px solid var(--border); border-radius:3px; font-size:0.6rem; text-align:center; cursor:pointer; color:var(--text-dim); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">NMAP</div>
+        <div style="padding:8px; border:1px solid var(--border); border-radius:3px; font-size:0.6rem; text-align:center; cursor:pointer; color:var(--text-dim); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">METASPLOIT</div>
+        <div style="padding:8px; border:1px solid var(--border); border-radius:3px; font-size:0.6rem; text-align:center; cursor:pointer; color:var(--text-dim); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">WIRESHARK</div>
+        <div style="padding:8px; border:1px solid var(--border); border-radius:3px; font-size:0.6rem; text-align:center; cursor:pointer; color:var(--text-dim); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--cyan)';this.style.color='var(--cyan)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">BURPSUITE</div>
+        <div style="padding:8px; border:1px solid var(--border); border-radius:3px; font-size:0.6rem; text-align:center; cursor:pointer; color:var(--text-dim); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--yellow)';this.style.color='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">MALTEGO</div>
+        <div style="padding:8px; border:1px solid var(--border); border-radius:3px; font-size:0.6rem; text-align:center; cursor:pointer; color:var(--text-dim); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--yellow)';this.style.color='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">SQLMAP</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ALERT -->
+<div class="alert-banner">
+  <div class="alert-title">⚠ INTRUSION DETECTED</div>
+  Unauthorized access attempt on port 22 — IP blocked automatically.
+</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toTimeString().slice(0,8);
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Ping bars
+  const barsContainer = document.getElementById('pingBars');
+  const barCount = 28;
+  for (let i = 0; i < barCount; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'ping-bar';
+    const h = Math.random() * 80 + 10;
+    bar.style.height = h + '%';
+    if (i === barCount - 1) bar.classList.add('active');
+    barsContainer.appendChild(bar);
+  }
+
+  // Animate bars
+  setInterval(() => {
+    const bars = barsContainer.querySelectorAll('.ping-bar');
+    bars.forEach((b, i) => {
+      b.classList.remove('active');
+      if (i === bars.length - 1) {
+        b.style.height = (Math.random() * 80 + 10) + '%';
+        b.classList.add('active');
+      }
+    });
+    // Shift values
+    const heights = Array.from(bars).map(b => b.style.height);
+    heights.push(heights.shift());
+    bars.forEach((b, i) => b.style.height = heights[i]);
+  }, 400);
+
+  // Animate stats
+  function animateStat(id, min, max, suffix = '') {
+    setInterval(() => {
+      const val = Math.floor(Math.random() * (max - min) + min);
+      document.getElementById(id).textContent = val + suffix;
+    }, 2000 + Math.random() * 3000);
+  }
+  animateStat('stat1', 200, 300);
+  animateStat('stat2', 10, 20);
+  animateStat('stat3', 2, 6);
+
+  // Auto-scroll terminal
+  const terminal = document.getElementById('terminal');
+  terminal.scrollTop = terminal.scrollHeight;
+
+  // Nav items
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  // Menu items
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
