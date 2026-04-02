@@ -1,23 +1,29 @@
-const fs = require("fs").promises;
-const http = require("http");
-port = 8000;
-host = "0.0.0.0";
-let index;
+const https = require('https');
+const fs = require('fs').promises;
 
-const requireListener = (req, res)=>{
-    res.setHeader("Content-Type", "text/html");
+const host = "0.0.0.0";//localhost
+const port = 8000;
+
+const requestListener = (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
     res.writeHead(200);
-    res.end(index);
+    res.end(indexFile);
+};
+
+let indexFile;
+
+        const server = https.createServer({
+            key: key,
+            cert: cert
+        }, requestListener);
+
+        server.listen(port, host, () => {
+            console.log(`Server running at https://${host}:${port}`);
+        });
+
+    } catch (err) {
+        console.error("Erreur :", err);
+    }
 }
 
-server = http.createServer(requireListener);
-
-fs.readFile(__dirname+"/index.html").then(contents=>{
-    index = contents;
-    server.listen(port, host, ab=>{
-        console.log(`The server is listening  at ${host} on port ${port}\n ${new Date()}`)
-    });
-}).catch(err=>{
-    console.error(`Could not read index.html file ${err}`);
-    process.exit(-1);
-})
+startServer();
