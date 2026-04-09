@@ -54,5 +54,12 @@ const requestListener = (req, res)=>{
     stream.pipe(res);
     stream.on('error', ()=>{
         res.writeHead(500, {'X-Content-Type-Options': 'nosniff'});
-    })
+        res.end('Internal Server Error');
+    });
 }
+
+const server = http.createServer(requestListener);
+server.listen(port, host, ()=>{
+    console.log(`Server running at http://${host}:${port}`);
+    console.log(`Serving stactic files from: ${publicDir}`);
+});
